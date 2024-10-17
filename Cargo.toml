@@ -1,0 +1,23 @@
+[package]
+edition = "2021"
+name = "twovec"
+version = "1.0.0"
+license = "MIT"
+categories = ["data-structures"]
+authors = ["Walnut356"]
+description = "A data structure for storing 2 types of data in a packed, heap allocated array"
+readme = "README.md"
+
+[badges]
+maintenance = { status = "passively-maintained" }
+
+[dependencies]
+either = "1.13.0"
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = ["small_rng"] }
+criterion = "0.5.1"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
