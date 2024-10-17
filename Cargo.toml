@@ -7,6 +7,7 @@ categories = ["data-structures"]
 authors = ["Walnut356"]
 description = "A data structure for storing 2 types of data in a packed, heap allocated array"
 readme = "README.md"
+repository = "https://github.com/Walnut356/twovec"
 
 [badges]
 maintenance = { status = "passively-maintained" }
