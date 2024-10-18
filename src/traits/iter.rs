@@ -59,7 +59,7 @@ impl<'a, A: Copy, B: Copy> Iterator for TwoVecIterA<'a, A, B> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut val = None;
 
-        while val.is_none() {
+        while val.is_none() && self.curr < self.inner.len {
             val = self.inner.get(self.curr);
             self.curr += 1;
         }
@@ -88,7 +88,7 @@ impl<'a, A: Copy, B: Copy> Iterator for TwoVecIterB<'a, A, B> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut val = None;
 
-        while val.is_none() {
+        while val.is_none() && self.curr < self.inner.len {
             val = self.inner.get(self.curr);
             self.curr += 1;
         }

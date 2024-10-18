@@ -108,7 +108,8 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
         unsafe { ptr.offset_from(self.data) as usize }
     }
 
-    /// Returns the offset from `self.data` to the value at `idx`.
+    /// Returns the offset from `self.data` to the value at `idx`. Since it returns an offset rather
+    /// than a raw pointer, there is no need to re-calculate the value if the TwoVec is reallocated
     pub(crate) fn idx_to_offset(&self, idx: usize) -> usize {
         let extra_byte = (idx % 8 != 0) as usize;
         let len = (idx / 8) + extra_byte;
@@ -220,12 +221,13 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
 
     /// Adds a value of type `A` to the end of the `TwoVec`, reallocating if necessary.
     pub fn push_a(&mut self, val: A) {
+        let offset = self.idx_to_offset(self.len);
         if self.capacity == 0
-            || self.idx_to_offset(self.len) + Self::A_SIZE + self.bitfield_size() > self.capacity
+            || offset + Self::A_SIZE + self.bitfield_size() > self.capacity
         {
             self.grow();
         }
-        let end = unsafe { self.data.add(self.idx_to_offset(self.len)).cast::<A>() };
+        let end = unsafe { self.data.add(offset).cast::<A>() };
         // unsafe {dbg!(self.data.offset_from(self.bitfield));
         // dbg!(end.offset_from(self.bitfield.cast()));}
         unsafe { end.write_unaligned(val) };
@@ -237,12 +239,13 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
 
     /// Adds a value of type `B` to the end of the `TwoVec`, reallocating if necessary.
     pub fn push_b(&mut self, val: B) {
+        let offset = self.idx_to_offset(self.len);
         if self.capacity == 0
-            || self.idx_to_offset(self.len) + Self::B_SIZE + self.bitfield_size() > self.capacity
+            || offset + Self::B_SIZE + self.bitfield_size() > self.capacity
         {
             self.grow();
         }
-        let end = unsafe { self.data.add(self.idx_to_offset(self.len)).cast::<B>() };
+        let end = unsafe { self.data.add(offset).cast::<B>() };
         unsafe { end.write_unaligned(val) };
 
         self.len += 1;
@@ -379,13 +382,15 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
         if idx > self.len {
             panic!("Cannot insert value at index {idx}, length is {}", self.len);
         }
-        if self.idx_to_offset(self.len) + Self::A_SIZE + self.bitfield_size() > self.capacity {
+
+        let end_offset = self.idx_to_offset(self.len);
+        let val_offset = self.idx_to_offset(idx);
+
+        if end_offset + Self::A_SIZE + self.bitfield_size() > self.capacity {
             self.grow();
         }
 
         unsafe {
-            let end_offset = self.idx_to_offset(self.len);
-            let val_offset = self.idx_to_offset(idx);
             let ptr = self.data.add(val_offset);
 
             ptr.copy_to(ptr.add(Self::A_SIZE), end_offset - val_offset);
@@ -422,13 +427,14 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
         if idx > self.len {
             panic!("Cannot insert value at index {idx}, length is {}", self.len);
         }
-        if self.idx_to_offset(self.len) + Self::B_SIZE + self.bitfield_size() > self.capacity {
+        let end_offset = self.idx_to_offset(self.len);
+        let val_offset = self.idx_to_offset(idx);
+
+        if end_offset + Self::B_SIZE + self.bitfield_size() > self.capacity {
             self.grow();
         }
 
         unsafe {
-            let end_offset = self.idx_to_offset(self.len);
-            let val_offset = self.idx_to_offset(idx);
             let ptr = self.data.add(val_offset);
 
             ptr.copy_to(ptr.add(Self::B_SIZE), end_offset - val_offset);
@@ -754,6 +760,60 @@ mod tests {
                 l, r,
                 "Values do not match at index {i}. TwoVec: {l}, Vec: {r} [Seed: {seed}]"
             );
+        }
+    }
+
+    #[test]
+    fn iter() {
+        let mut rng = SmallRng::from_entropy();
+        let seed = rng.gen();
+        let mut rng = SmallRng::seed_from_u64(seed);
+
+        let mut tv = TwoVec::<u16, f32>::new();
+        let mut either = Vec::<Either<u16, f32>>::new();
+        for _ in 0..100 {
+            if rng.gen_bool(0.5) {
+                let val = rng.gen();
+                tv.push_a(val);
+                either.push(Either::Left(val));
+            } else {
+                let val = rng.gen();
+                tv.push_b(val);
+                either.push(Either::Right(val));
+            }
+        }
+
+        for (tv, either) in std::iter::zip(tv.into_iter(), either.into_iter()) {
+            assert_eq!(tv, either);
+        }
+    }
+
+    #[test]
+    fn iter_only() {
+        let mut rng = SmallRng::from_entropy();
+        let seed = rng.gen();
+        let mut rng = SmallRng::seed_from_u64(seed);
+
+        let mut tv = TwoVec::<u16, f32>::new();
+        let mut either = Vec::<Either<u16, f32>>::new();
+        for _ in 0..100 {
+            if rng.gen_bool(0.5) {
+                let val = rng.gen();
+                tv.push_a(val);
+                either.push(Either::Left(val));
+            } else {
+                let val = rng.gen();
+                tv.push_b(val);
+                either.push(Either::Right(val));
+            }
+        }
+
+        for (tv, either) in std::iter::zip(tv.iter_only_a(), either.iter().filter_map(|x| x.left())) {
+            assert_eq!(tv, either);
+        }
+
+        for (tv, either) in std::iter::zip(tv.iter_only_b(), either.iter().filter_map(|x| x.right())) {
+            assert_eq!(tv, either);
         }
     }
 
