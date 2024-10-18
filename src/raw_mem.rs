@@ -117,3 +117,14 @@ impl<A: Copy, B: Copy> TwoVec<A, B> {
         assert_ne!(self.bitfield, self.data);
     }
 }
+
+impl<A: Copy, B: Copy> Drop for TwoVec<A, B> {
+    // since all elements are `Copy`, they can't have drop implementations in the first place
+    // so there's no need to call drop on them. We can just deallocate the whole memory region and
+    // call it good
+    fn drop(&mut self) {
+        let layout = Layout::array::<u8>(self.capacity).unwrap();
+        unsafe { dealloc(self.bitfield.as_ptr(), layout) }
+
+    }
+}
