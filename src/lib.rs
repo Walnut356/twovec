@@ -20,9 +20,9 @@ pub struct TwoVec<A: Copy, B: Copy> {
 }
 
 impl<A: Copy, B: Copy> TwoVec<A, B> {
-    /// size_of::<A>()
+    /// size_of::\<A\>()
     pub const A_SIZE: usize = size_of::<A>();
-    /// size_of::<B>()
+    /// size_of::\<B\>()
     pub const B_SIZE: usize = size_of::<B>();
 
     // no const traits so no const Ord so no const .max and .min functions =(
